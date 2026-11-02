@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Free Throw Coach</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#2a2f3a;--tx:#e8eaf0;--mut:#8b93a5;--ok:#5ac850;--bad:#eb5050;--acc:#f5a623}
+@media(prefers-color-scheme:light){:root{--bg:#f6f7f9;--card:#fff;--line:#dfe3ea;--tx:#161922;--mut:#5d667a;--ok:#2e9e2a;--bad:#d03a3a;--acc:#c77700}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:26px;margin:0}.sub{color:var(--mut);margin:4px 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+.drop{border:2px dashed var(--line);text-align:center;padding:36px 16px;cursor:pointer}
+.drop.over{border-color:var(--acc)}
+button{font:inherit;background:var(--acc);color:#111;border:0;border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.steps{list-style:none;padding:0;margin:12px 0 0}.steps li{padding:6px 0;color:var(--mut)}
+.steps li.on{color:var(--tx);font-weight:600}.steps li.done{color:var(--ok)}
+.bar{height:6px;background:var(--line);border-radius:3px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);width:0}
+.grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-top:16px}@media(max-width:820px){.grid{grid-template-columns:1fr}}
+video{width:100%;border-radius:10px;background:#000}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}@media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat b{display:block;font-size:24px}.stat span{color:var(--mut);font-size:13px}
+.cue{font-size:19px;font-weight:600;border-left:4px solid var(--acc);padding-left:12px;margin:10px 0}
+h3{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+tr.row{cursor:pointer}tr.row:hover{background:var(--bg)}.mk{color:var(--ok);font-weight:600}.ms{color:var(--bad);font-weight:600}
+.tbl{max-height:340px;overflow:auto}.err{color:var(--bad)}.hide{display:none}.note{color:var(--mut);font-size:13px}
+</style></head><body><main>
+<h1>🏀 Free Throw Coach</h1>
+<p class="sub">Film your free throws side-on, upload the clip. SAM 3.1 tracks the ball, Muse Spark coaches you.</p>
+
+<section id="start" class="card drop">
+  <input type="file" id="file" accept="video/*" class="hide">
+  <p style="font-size:18px;margin:0 0 6px"><b>Drop a clip here</b> or click to choose</p>
+  <p class="note" style="margin:0 0 14px">Fixed camera, side-on, hoop and full arc in frame. 60 fps works best.</p>
+  <button class="ghost" id="demo">Try the demo session</button>
+</section>
+
+<section id="prog" class="card hide">
+  <b id="plabel">Starting…</b>
+  <div class="bar"><i id="pbar"></i></div>
+  <ul class="steps" id="steps"></ul>
+  <p class="err" id="perr"></p>
+  <button class="ghost hide" id="retry">Try another clip</button>
+</section>
+
+<section id="res" class="hide">
+  <div class="stats card" id="stats"></div>
+  <div class="grid">
+    <div class="card"><video id="vid" controls playsinline></video><p class="note" id="vnote"></p></div>
+    <div class="card" id="coach"></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Where each shot crossed the rim (inches from centre)</h3><svg id="strip" width="100%" height="90"></svg></div>
+  <div class="card" style="margin-top:16px"><h3>Every shot</h3><div class="tbl"><table id="tbl"></table></div></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const STEPS=[["encode","Preparing your video"],["sam","Tracking the ball and hoop (SAM 3.1)"],["shots","Measuring every shot"],["coach","Writing your coaching (Muse Spark)"],["render","Rendering the annotated video"]];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const drop=$("start");
+drop.onclick=e=>{if(e.target.id!=="demo")$("file").click()};
+drop.ondragover=e=>{e.preventDefault();drop.classList.add("over")};
+drop.ondragleave=()=>drop.classList.remove("over");
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");if(e.dataTransfer.files[0])up(e.dataTransfer.files[0])};
+$("file").onchange=e=>e.target.files[0]&&up(e.target.files[0]);
+$("demo").onclick=async()=>{show("prog");const r=await fetch("/api/demo",{method:"POST"});r.ok?poll((await r.json()).id):fail((await r.json()).detail)};
+$("retry").onclick=()=>{show("start")};
+function show(w){["start","prog","res"].forEach(k=>$(k).classList.toggle("hide",k!==w));if(w==="prog"){$("perr").textContent="";$("retry").classList.add("hide");$("pbar").style.width="0";drawSteps("")}}
+function drawSteps(cur){let on=true;$("steps").innerHTML=STEPS.map(([k,l])=>{const c=k===cur?"on":(on&&!cur?"":"");if(k===cur)on=false;return`<li class="${k===cur?"on":(!cur||on?"done":"")}">${!cur?"":on?"✓ ":k===cur?"› ":""}${l}</li>`}).join("")}
+function up(f){show("prog");$("plabel").textContent="Uploading…";
+  const x=new XMLHttpRequest();x.open("POST","/api/upload");
+  x.upload.onprogress=e=>$("pbar").style.width=(e.loaded/e.total*100)+"%";
+  x.onload=()=>{try{const j=JSON.parse(x.responseText);x.status<300?poll(j.id):fail(j.detail)}catch{fail("Upload failed")}};
+  x.onerror=()=>fail("Upload failed");const fd=new FormData();fd.append("file",f);x.send(fd)}
+function fail(m){$("perr").textContent=m||"Something went wrong.";$("plabel").textContent="Couldn't process that clip";$("retry").classList.remove("hide")}
+async function poll(id){
+  for(;;){
+    let j;try{j=await (await fetch("/api/jobs/"+id)).json()}catch{await new Promise(r=>setTimeout(r,1500));continue}
+    if(j.status==="error")return fail(j.error);
+    if(j.status==="done")return render(j.result);
+    $("plabel").textContent=j.label+"…";drawSteps(j.stage);
+    const i=STEPS.findIndex(s=>s[0]===j.stage);
+    $("pbar").style.width=((i+(j.progress||0))/STEPS.length*100)+"%";
+    await new Promise(r=>setTimeout(r,1500));
+  }}
+function render(r){
+  show("res");const R=r.report,S=r.shots,v=$("vid");v.src=r.video;
+  const stat=(a,b)=>`<div class="stat"><b>${a}</b><span>${b}</span></div>`;
+  const e=R.entry_angle,off=R.offset_in;
+  $("stats").innerHTML=stat(`${R.makes}/${R.shots}`,"made ("+R.make_pct+"%)")+stat(e?Math.round(e.mean)+"° ± "+Math.round(e.std):"–","entry angle")+stat(R.apex_in?Math.round(R.apex_in.mean)+" in":"–","arc peak above rim")+stat(off?(off.mean>0?"+":"")+off.mean+" in":"–","avg short(+) / long(−)");
+  const c=r.coaching;
+  $("coach").innerHTML=c?`<h3>Coach</h3><div style="font-size:18px;font-weight:600">${esc(c.headline)}</div>
+    <p><b style="color:var(--ok)">Strength.</b> ${esc(c.strength)}</p>
+    <h3 style="margin-top:14px">Work on</h3><b>${esc(c.top_issue?.title)}</b>
+    <p class="note" style="margin:2px 0 6px">${esc(c.top_issue?.evidence)}</p>
+    <div class="cue">“${esc(c.top_issue?.cue)}”</div><p><b>Drill.</b> ${esc(c.top_issue?.drill)}</p>
+    <p class="note">${esc(c.consistency_note)}${c.confidence==="low"?" · Confidence: low.":""}</p>`
+    :`<h3>Coach</h3><p class="note">Coaching text unavailable${r.coaching_error?" ("+esc(r.coaching_error)+")":""}. Your numbers are below.</p>`;
+  $("vnote").textContent="Left/right misses can't be seen from a side camera, so those show as made unless short or long.";
+  // strip
+  const W=1000,x=o=>W/2+Math.max(-30,Math.min(30,o))/30*(W/2-20);
+  let svg=`<rect x="${x(-5.5)}" y="14" width="${x(5.5)-x(-5.5)}" height="46" fill="currentColor" opacity=".08"/><line x1="${W/2}" x2="${W/2}" y1="10" y2="64" stroke="currentColor" opacity=".3"/>`;
+  S.forEach((s,i)=>{svg+=`<circle cx="${x(s.short_in)}" cy="${37+((i*37)%21)-10}" r="7" fill="${s.made?"var(--ok)":"var(--bad)"}" style="cursor:pointer" data-t="${s.rim_t}"><title>Shot ${s.i}: ${s.short_in>0?"short":"long"} ${Math.abs(s.short_in)} in</title></circle>`});
+  svg+=`<text x="${x(-28)}" y="84" font-size="12" fill="currentColor" opacity=".6">long</text><text x="${x(22)}" y="84" font-size="12" fill="currentColor" opacity=".6">short</text>`;
+  $("strip").setAttribute("viewBox",`0 0 ${W} 90`);$("strip").innerHTML=svg;
+  $("strip").querySelectorAll("circle").forEach(n=>n.onclick=()=>seek(+n.dataset.t));
+  $("tbl").innerHTML="<tr><th>#</th><th>Time</th><th>Result</th><th>Entry</th><th>Peak</th><th>Short/long</th></tr>"+S.map(s=>`<tr class="row" data-t="${s.rim_t}"><td>${s.i}</td><td>${Math.floor(s.t/60)}:${String(Math.floor(s.t%60)).padStart(2,"0")}</td><td class="${s.made?"mk":"ms"}">${s.made?"Make":"Miss "+(s.miss_type||"")}</td><td>${s.entry==null?"–":s.entry+"°"}</td><td>${s.apex_in==null?"–":s.apex_in+" in"}</td><td>${s.short_in>0?"short ":"long "}${Math.abs(s.short_in)} in</td></tr>`).join("");
+  $("tbl").querySelectorAll("tr.row").forEach(n=>n.onclick=()=>seek(+n.dataset.t));
+}
+function seek(t){const v=$("vid");v.currentTime=Math.max(0,t-2.2);v.play();v.scrollIntoView({behavior:"smooth",block:"center"})}
+</script></body></html>
