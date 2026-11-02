@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#090a10" />
     <title>Free Throw Coach — Shot Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
     <link
       rel="stylesheet"
       href="./css/app.css"
@@ -60,13 +66,18 @@
         <a class="brand" href="#home" aria-label="Free Throw Coach home">
           <svg class="icon" aria-hidden="true"><use href="#i-ball" /></svg>Free Throw Coach</a
         >
-        <div class="navlinks">
-          <a href="#how">How it works</a><a href="#analysis">Shot analysis</a
-          ><a href="#guide">Filming guide</a>
+        <div class="navright">
+          <div class="navlinks">
+            <a href="#how">How it works</a><a href="#system">The system</a
+            ><a href="#why">Why we built it</a
+            ><a href="https://github.com/anishchugh05/Free-Throw-Coach" target="_blank" rel="noopener"
+              >GitHub ↗</a
+            >
+          </div>
+          <a class="btn navbtn" href="#studio"
+            >Launch app <svg class="icon" aria-hidden="true"><use href="#i-ne" /></svg
+          ></a>
         </div>
-        <a class="btn navbtn" href="#studio"
-          >Launch app <svg class="icon" aria-hidden="true"><use href="#i-ne" /></svg
-        ></a>
       </nav>
     </header>
     <main id="content" tabindex="-1">
@@ -356,7 +367,7 @@
           </div>
         </div>
         <section class="wrap block" id="how">
-          <div class="section-no">01 / The process</div>
+          <div class="section-no"><b>01</b> The process</div>
           <div class="section-head">
             <h2>From court to coach.</h2>
             <p>Four steps. One side-on clip.</p>
@@ -365,7 +376,7 @@
             <article class="step" style="--delay: 0ms">
               <div class="step-top">
                 <svg class="icon" aria-hidden="true"><use href="#i-phone" /></svg
-                ><small>/ 01</small>
+                ><small>01</small>
               </div>
               <h3>Film your set</h3>
               <p>Keep your phone still and the whole arc in frame.</p>
@@ -373,7 +384,7 @@
             <article class="step" style="--delay: 45ms">
               <div class="step-top">
                 <svg class="icon" aria-hidden="true"><use href="#i-upload" /></svg
-                ><small>/ 02</small>
+                ><small>02</small>
               </div>
               <h3>Drop your clip</h3>
               <p>Upload a video or record straight from the app.</p>
@@ -381,7 +392,7 @@
             <article class="step" style="--delay: 90ms">
               <div class="step-top">
                 <svg class="icon" aria-hidden="true"><use href="#i-track" /></svg
-                ><small>/ 03</small>
+                ><small>03</small>
               </div>
               <h3>Track each shot</h3>
               <p>SAM 3.1 follows the ball and hoop frame by frame.</p>
@@ -389,11 +400,61 @@
             <article class="step" style="--delay: 135ms">
               <div class="step-top">
                 <svg class="icon" aria-hidden="true"><use href="#i-coach" /></svg
-                ><small>/ 04</small>
+                ><small>04</small>
               </div>
               <h3>Get coached</h3>
               <p>Replay each shot with a cue and drill for your next set.</p>
             </article>
+          </div>
+        </section>
+        <section class="wrap block" id="system">
+          <div class="section-no"><b>02</b> The system</div>
+          <div class="section-head">
+            <h2>What happens to your clip.</h2>
+            <p>Meta's models do the seeing and the talking. Our own code does the measuring.</p>
+          </div>
+          <ol class="flow">
+            <li class="node you">
+              <div class="kind">You</div>
+              <h3>Phone clip</h3>
+              <p>A fixed, side-on video of your free throws.</p>
+              <div class="out"><span>Sends</span>mp4 / mov</div>
+            </li>
+            <li class="node ours">
+              <div class="kind">Our code</div>
+              <h3>Web app + API</h3>
+              <p>FastAPI takes the upload. ffmpeg normalizes the video.</p>
+              <div class="out"><span>Passes on</span>H.264, constant fps</div>
+            </li>
+            <li class="node meta">
+              <div class="kind">Meta SAM 3.1</div>
+              <h3>Track ball + hoop</h3>
+              <p>Segments both in every frame. We keep the bounding boxes.</p>
+              <div class="out"><span>Passes on</span>boxes per frame</div>
+            </li>
+            <li class="node ours">
+              <div class="kind">Our code</div>
+              <h3>Shot metrics</h3>
+              <p>Finds each apex, fits the arc, reads where the ball crosses rim height.</p>
+              <div class="out"><span>Passes on</span>make/miss, entry angle, peak, short/long</div>
+            </li>
+            <li class="node meta">
+              <div class="kind">Muse Spark</div>
+              <h3>Coaching</h3>
+              <p>Turns the session numbers into one cue and one drill. Measured values only.</p>
+              <div class="out"><span>Passes on</span>coaching JSON</div>
+            </li>
+            <li class="node you">
+              <div class="kind">You</div>
+              <h3>Your report</h3>
+              <p>Annotated video, coach verdict, rim plot and a shot table.</p>
+              <div class="out"><span>Shows</span>replay linked to every shot</div>
+            </li>
+          </ol>
+          <div class="flow-legend">
+            <span><i class="lg meta"></i> Meta model</span><span><i class="lg ours"></i> Our code</span
+            ><span><i class="lg you"></i> You</span>
+            <em>We only track the ball and the hoop. Nothing measures your body.</em>
           </div>
         </section>
         <section class="block showcase" id="analysis">
@@ -413,7 +474,7 @@
               <figcaption class="artfoot">Illustrative overlay · one made shot</figcaption>
             </figure>
             <div>
-              <div class="section-no">02 / Shot analysis</div>
+              <div class="section-no"><b>03</b> Shot analysis</div>
               <div class="section-head">
                 <h2>See the whole shot.</h2>
               </div>
@@ -428,7 +489,7 @@
         </section>
         <section id="guide" class="wrap block guide">
           <div>
-            <div class="section-no">03 / Camera setup</div>
+            <div class="section-no"><b>04</b> Camera setup</div>
             <h2>Film from the side.</h2>
             <p>
               Prop your phone on a fixed support, level with the side of the court. Keep the
@@ -436,7 +497,7 @@
             </p>
           </div>
           <div>
-            <div class="section-no">04 / Field notes</div>
+            <div class="section-no"><b>05</b> Field notes</div>
             <h2>What we can see.</h2>
             <p>
               A fixed side view reveals depth at the rim. Left and right misses are invisible from
@@ -449,6 +510,87 @@
           </div>
         </section>
       </div>
+      <section id="whyView" hidden>
+        <div class="wrap why-hero">
+          <div class="eyebrow"><i class="dot"></i> Why we built this</div>
+          <h1>Every rep<br />deserves <em>feedback.</em></h1>
+          <p class="why-lead">
+            A free throw is the most repeatable shot in basketball: same spot, same distance, nobody
+            guarding you. It should be the most coachable shot too. In practice, players take
+            hundreds of them and get almost no feedback on what actually happened.
+          </p>
+        </div>
+        <div class="wrap why-cards">
+          <article class="why-card">
+            <b>01</b>
+            <h3>Practice without a coach</h3>
+            <p>
+              A coach can't watch every rep, and most of us don't have one at the gym. A phone on a
+              stable support is the cheapest sensor there is, and everybody already owns one.
+            </p>
+          </article>
+          <article class="why-card">
+            <b>02</b>
+            <h3>Numbers you can act on</h3>
+            <p>
+              "Keep your elbow in" is hard to measure. Entry angle, arc peak and short-versus-long
+              depth are things you can watch move from one session to the next.
+            </p>
+          </article>
+          <article class="why-card">
+            <b>03</b>
+            <h3>Honest by design</h3>
+            <p>
+              We tell you what we can't see, and when a session is too clean to say much. No made-up
+              scores, no fake confidence.
+            </p>
+          </article>
+        </div>
+        <div class="wrap why-honest">
+          <div class="why-stat"><strong>26<span>/27</span></strong><small>make/miss calls matched a hand-scored session</small></div>
+          <div>
+            <div class="section-no"><b>★</b> The honest part</div>
+            <h2>Early, and we say so.</h2>
+            <p>
+              That number comes from one early test clip that we also used while building, so we
+              treat it as a promising start, not a guarantee. A fixed side camera sees depth at the
+              rim, so left and right misses are invisible to it. Accuracy depends on your framing
+              and footage.
+            </p>
+            <p>
+              The tracking comes from Meta's SAM 3.1 and the coaching language from Muse Spark.
+              The measuring is our own code, so every number on your report is something we
+              computed from where the ball actually went.
+            </p>
+          </div>
+        </div>
+        <div class="wrap why-next">
+          <div class="panel">
+            <div class="tag">What's next</div>
+            <h3>Where this goes.</h3>
+            <ul>
+              <li>A second camera angle, so left and right misses become visible.</li>
+              <li>Progress across sessions, so you can see the arc tighten over weeks.</li>
+              <li>Shot-by-shot cues from the footage itself, not just the session summary.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <div class="tag">Built by</div>
+            <h3>Anish Chugh</h3>
+            <p>
+              A senior at UMass Amherst studying computer engineering and statistics &amp; data
+              science, built for the Meta Global AI Developer Hackathon.
+            </p>
+            <div class="actions">
+              <a class="btn primary" href="#studio"
+                >Try it now <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a
+              ><a class="btn" href="https://github.com/anishchugh05/Free-Throw-Coach" target="_blank" rel="noopener"
+                >View on GitHub <svg class="icon" aria-hidden="true"><use href="#i-ne" /></svg
+              ></a>
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="studioView" class="wrap app" hidden>
         <a class="back" href="#home">← Back to court</a>
         <div id="screen"></div>
@@ -459,7 +601,12 @@
         <a class="brand" href="#home">
           <svg class="icon" aria-hidden="true"><use href="#i-ball" /></svg>Free Throw Coach</a
         ><span>Built for the Meta Global AI Developer Hackathon</span
-        ><span id="repoSlot">GitHub · link pending</span>
+        ><span class="footlinks"
+          ><a href="#why">Why we built it</a><a href="#guide">Filming guide</a
+          ><a href="https://github.com/anishchugh05/Free-Throw-Coach" target="_blank" rel="noopener"
+            >GitHub ↗</a
+          ></span
+        >
       </div>
     </footer>
     <script

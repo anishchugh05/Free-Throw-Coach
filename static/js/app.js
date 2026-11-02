@@ -1,5 +1,4 @@
 const MOCK_MODE = false;
-const GITHUB_URL = ""; // Set to the project repository when available.
 const $ = (selector) => document.querySelector(selector);
 const screenEl = $("#screen");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -99,11 +98,6 @@ if ("IntersectionObserver" in window) {
   });
   observer.observe($(".steps"));
 }
-if (GITHUB_URL) {
-  const link = el("a", "GitHub ↗");
-  link.href = GITHUB_URL;
-  $("#repoSlot").replaceChildren(link);
-}
 const assetRoot = new URL("../", document.currentScript.src);
 let lastReport = null;
 let run = 0,
@@ -133,9 +127,14 @@ function title(kicker, heading, description) {
   h.tabIndex = -1;
   h.focus({ preventScroll: true });
 }
+const viewOf = (hash) => (hash === "#studio" ? "studio" : hash === "#why" ? "why" : "home");
+let currentView = "home";
 function route() {
-  const studio = location.hash === "#studio";
-  $("#homeView").hidden = studio;
+  const view = viewOf(location.hash);
+  currentView = view;
+  const studio = view === "studio";
+  $("#homeView").hidden = view !== "home";
+  $("#whyView").hidden = view !== "why";
   $("#studioView").hidden = !studio;
   if (studio && page === "") input();
   if (!studio) {
@@ -143,7 +142,7 @@ function route() {
     page = "";
     screenEl.replaceChildren();
     requestAnimationFrame(() => {
-      const target = ["#how", "#analysis", "#guide", "#content"].includes(location.hash)
+      const target = ["#how", "#system", "#analysis", "#guide", "#content"].includes(location.hash)
         ? $(location.hash)
         : null;
       if (target) target.scrollIntoView();
@@ -158,7 +157,7 @@ function openDemo() {
 let navigationTransition;
 window.addEventListener("hashchange", () => {
   navigationTransition?.skipTransition();
-  const switchesView = $("#homeView").hidden !== (location.hash === "#studio");
+  const switchesView = currentView !== viewOf(location.hash);
   if (!switchesView || reduceMotion.matches || !document.startViewTransition) {
     route();
     return;
