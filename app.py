@@ -1,7 +1,8 @@
 """uvicorn app:app --port 8000"""
 import os, pathlib, re, shutil, uuid
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import process
 
 app = FastAPI()
@@ -10,16 +11,11 @@ MAX_MB = 400
 DEMO_VIDEO = pathlib.Path(os.environ.get("DEMO_VIDEO", "full.mp4"))
 
 
-@app.get("/", response_class=HTMLResponse)
-def index():
-    return (ROOT / "static" / "index.html").read_text()
-
-
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     jid = uuid.uuid4().hex[:10]
     ext = pathlib.Path(file.filename or "v.mp4").suffix.lower()
-    if ext not in {".mp4", ".mov", ".m4v", ".webm", ".mkv"}:
+    if ext not in {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".3gp"}:
         raise HTTPException(400, "Upload a video file (.mp4 or .mov).")
     d = process.JOBS / jid
     d.mkdir(parents=True, exist_ok=True)
@@ -66,3 +62,8 @@ def video(jid: str):
     if not p.exists():
         raise HTTPException(404)
     return FileResponse(p, media_type="video/mp4")
+
+
+# Frontend: served last so /api/* wins. Works for both ./css/... and ./static/css/... paths.
+app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static-alias")
+app.mount("/", StaticFiles(directory=ROOT / "static", html=True), name="site")

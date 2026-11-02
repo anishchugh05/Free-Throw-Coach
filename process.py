@@ -51,8 +51,14 @@ def probe(path):
     out = _run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                 "stream=width,height,avg_frame_rate", "-of", "json", str(path)])
     st = json.loads(out)["streams"][0]
-    n, d = st["avg_frame_rate"].split("/")
-    return float(n) / float(d), st["width"], st["height"]
+    try:
+        n, d = st["avg_frame_rate"].split("/")
+        fps = float(n) / float(d)
+    except (ValueError, ZeroDivisionError):
+        fps = 0.0
+    if not 5 <= fps <= 121:      # browser recordings (webm) often report no usable fps
+        fps = 30.0
+    return fps, st["width"], st["height"]
 
 
 def build_result(shots, report, coaching, fps, hoop_box, video_url, coaching_error=None):
