@@ -5,7 +5,7 @@ import coach as coach_mod
 import render as render_mod
 import sam_client
 import sam_windows
-from pipeline import hoop_box_from, all_shots
+from pipeline import hoop_box_from, all_shots, hoop_track_from, hoop_offsets
 from shooter import shooter_metrics
 
 JOBS = pathlib.Path("jobs")
@@ -77,11 +77,19 @@ def build_result(shots, report, coaching, fps, hoop_box, video_url, coaching_err
                 coaching=coaching, coaching_error=coaching_error, video=video_url)
 
 
-def analyze_and_coach(jid, balls, hoops, fps, players=None):
+def analyze_and_coach(jid, balls, hoops, fps, players=None, hoop_recs=None):
     hoop_box = hoop_box_from(hoops) if hoops else None
     if hoop_box is None:
         raise RuntimeError("Couldn't find the hoop. Keep the whole rim in frame at the start of the clip.")
-    shots = all_shots(balls, hoop_box, fps)
+    track = None
+    if hoop_recs:
+        try:
+            track = hoop_track_from(hoop_recs)
+            hoop_box = track[3]
+        except Exception:
+            traceback.print_exc()
+            track = None
+    shots = all_shots(balls, hoop_box, fps, hoop_track=track)
     if not shots:
         raise RuntimeError("No shots found. Use a fixed side-on camera with the hoop and the full arc in frame.")
     boxes, summ = {}, None
@@ -94,25 +102,37 @@ def analyze_and_coach(jid, balls, hoops, fps, players=None):
             traceback.print_exc()
             boxes, summ = {}, None
     report = coach_mod.build_report(shots, summ)
-    return hoop_box, shots, report, boxes
+    hoff = hoop_offsets(track, max(b['f'] for b in balls) + 1) if track else None
+    return hoop_box, shots, report, boxes, hoff
 
 
-def shooter_boxes_for(norm, balls, hoops, fps, width):
-    """Shooter tracking only on short windows around each shot (fast); never fatal."""
+def windowed_tracks(norm, balls, hoops, fps, width):
+    """SAM on short windows around each shot, in parallel: the shooter, and the hoop (so a moving
+    camera is handled). Returns (player_records, hoop_records); either may be None. Never fatal."""
     try:
-        hb = hoop_box_from(hoops)
-        shots = all_shots(balls, hb, fps)
+        shots = all_shots(balls, hoop_box_from(hoops), fps)
         if not shots:
-            return None
+            return None, None
         n = max(b["f"] for b in balls) + 1
         async def go():
-            return await sam_windows.track_windows(sam_client.segment, sam_client.make_client(), str(norm),
-                                                   shots, fps, n, min(width, 1920))
-        recs, _ = asyncio.run(go())
-        return recs or None
+            c = sam_client.make_client()
+            w = min(width, 1920)
+            return await asyncio.gather(
+                sam_windows.track_windows(sam_client.segment, c, str(norm), shots, fps, n, w, par=5),
+                sam_windows.track_windows(sam_client.segment, c, str(norm), shots, fps, n, w, par=5,
+                                          prompt="basketball hoop", pre=1.3, post=1.3),
+                return_exceptions=True)
+        res = asyncio.run(go())
+        out = []
+        for r in res:
+            if isinstance(r, Exception):
+                traceback.print_exception(r); out.append(None)
+            else:
+                out.append(r[0] or None)
+        return out[0], out[1]
     except Exception:
         traceback.print_exc()
-        return None
+        return None, None
 
 
 def _pipeline(job, src):
@@ -136,14 +156,16 @@ def _pipeline(job, src):
     for r in (balls, hoops):
         if isinstance(r, Exception):
             raise r
-    players = shooter_boxes_for(norm, balls, hoops, fps, w)
+    players, hoop_recs = windowed_tracks(norm, balls, hoops, fps, w)
     (d / "balls.json").write_text(json.dumps(balls))
     (d / "hoops.json").write_text(json.dumps(hoops))
     if players:
         (d / "players.json").write_text(json.dumps(players))
+    if hoop_recs:
+        (d / "hoop_track.json").write_text(json.dumps(hoop_recs))
 
     _stage(job, "shots")
-    hoop_box, shots, report, sboxes = analyze_and_coach(job["id"], balls, hoops, fps, players)
+    hoop_box, shots, report, sboxes, hoff = analyze_and_coach(job["id"], balls, hoops, fps, players, hoop_recs)
 
     _stage(job, "coach")
     coaching, cerr = None, None
@@ -156,7 +178,7 @@ def _pipeline(job, src):
     def prog(p):
         job["progress"] = round(p, 2); _save(job)
     render_mod.render(str(norm), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog,
-                      shooter_boxes=sboxes)
+                      shooter_boxes=sboxes, hoop_offsets=hoff)
     return build_result(shots, report, coaching, fps, hoop_box, f"/api/jobs/{job['id']}/video", cerr)
 
 
@@ -180,7 +202,7 @@ def start_job(jid, src):
 def code_sig():
     """Changes whenever the analysis code or demo data changes, so a stale cached demo is rebuilt."""
     names = ["process.py", "shooter.py", "render.py", "coach.py", "pipeline.py", "shotmetrics.py",
-             "cache/full__basketball_player.json"]
+             "cache/full__basketball_player.json", "cache/full__hoop_track.json"]
     return str(max((os.path.getmtime(n) for n in names if os.path.exists(n)), default=0))
 
 
@@ -200,7 +222,11 @@ def start_demo(jid, video, stem="full", hoop_stem="spike"):
                 players = load(stem, "basketball_player")
             except FileNotFoundError:
                 players = None
-            hoop_box, shots, report, sboxes = analyze_and_coach(jid, balls, hoops, fps, players)
+            try:
+                hoop_recs = load(stem, "hoop_track")
+            except FileNotFoundError:
+                hoop_recs = None
+            hoop_box, shots, report, sboxes, hoff = analyze_and_coach(jid, balls, hoops, fps, players, hoop_recs)
             _stage(job, "coach")
             coaching, cerr = None, None
             try:
@@ -211,7 +237,7 @@ def start_demo(jid, video, stem="full", hoop_stem="spike"):
             def prog(p):
                 job["progress"] = round(p, 2); _save(job)
             render_mod.render(str(video), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog,
-                              shooter_boxes=sboxes)
+                              shooter_boxes=sboxes, hoop_offsets=hoff)
             job["result"] = build_result(shots, report, coaching, fps, hoop_box, f"/api/jobs/{jid}/video", cerr)
             job["status"] = "done"
         except Exception as e:

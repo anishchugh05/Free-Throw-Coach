@@ -1,9 +1,13 @@
 import re, sys
-from pipeline import load, hoop_box_from, all_shots
+from pipeline import load, hoop_box_from, all_shots, hoop_track_from
 
 stem, hoop_stem, logfile = sys.argv[1], sys.argv[2], sys.argv[3]
-hoop_box = hoop_box_from(load(hoop_stem, "basketball_hoop"))
-shots = all_shots(load(stem, "basketball"), hoop_box)
+try:
+    trk = hoop_track_from(load(stem, "hoop_track"))
+except FileNotFoundError:
+    trk = None
+hoop_box = trk[3] if trk else hoop_box_from(load(hoop_stem, "basketball_hoop"))
+shots = all_shots(load(stem, "basketball"), hoop_box, hoop_track=trk)
 
 log = []
 for line in open(logfile):

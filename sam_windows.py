@@ -2,6 +2,8 @@
 downscaled, in parallel. Same cache format as sam_run.py.
 
   python sam_windows.py full.mp4 --ball full --hoop spike [--width 960] [--par 6]
+  Hoop track for a moving camera:
+  python sam_windows.py clip.mp4 --ball clip --hoop clip_hoop --prompt "basketball hoop" --out hoop_track --pre 1.3 --post 1.3
 """
 import argparse, asyncio, json, os, pathlib, subprocess, tempfile, time
 from dotenv import load_dotenv; load_dotenv()
@@ -29,8 +31,8 @@ def cut(video, start_f, end_f, fps, width, dst):
                    check=True)
 
 
-async def track_windows(segment, client, video, shots, fps, n_frames, orig_w, width=960, par=6, prompt="basketball player"):
-    wins = windows(shots, fps, n_frames)
+async def track_windows(segment, client, video, shots, fps, n_frames, orig_w, width=960, par=6, prompt="basketball player", pre=2.5, post=0.6):
+    wins = windows(shots, fps, n_frames, pre=pre, post=post)
     sem = asyncio.Semaphore(par)
     tmp = pathlib.Path(tempfile.mkdtemp())
     out_w = min(width, orig_w)
@@ -56,6 +58,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("video"); ap.add_argument("--ball"); ap.add_argument("--hoop")
     ap.add_argument("--width", type=int, default=960); ap.add_argument("--par", type=int, default=6)
+    ap.add_argument("--prompt", default="basketball player"); ap.add_argument("--out", default="basketball_player")
+    ap.add_argument("--pre", type=float, default=2.5); ap.add_argument("--post", type=float, default=0.6)
     a = ap.parse_args()
     import sam_client
     from pipeline import load, hoop_box_from, all_shots, FPS
@@ -67,10 +71,10 @@ if __name__ == "__main__":
     n, w = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)); cap.release()
     balls = load(stem, "basketball")
     shots = all_shots(balls, hoop_box_from(load(hoop, "basketball_hoop")), fps)
-    wins = windows(shots, fps, n)
+    wins = windows(shots, fps, n, pre=a.pre, post=a.post)
     print(f"{len(shots)} shots -> {len(wins)} windows, {sum(b - a + 1 for a, b in wins) / fps:.0f}s of video (clip is {n / fps:.0f}s)")
     t0 = time.time()
-    recs, _ = asyncio.run(track_windows(sam_client.segment, sam_client.make_client(), a.video, shots, fps, n, w, a.width, a.par))
-    out = pathlib.Path(f"cache/{stem}__basketball_player.json")
+    recs, _ = asyncio.run(track_windows(sam_client.segment, sam_client.make_client(), a.video, shots, fps, n, w, a.width, a.par, a.prompt, a.pre, a.post))
+    out = pathlib.Path(f"cache/{stem}__{a.out}.json")
     out.write_text(json.dumps(recs))
     print(f"done in {time.time() - t0:.0f}s, {len(recs)} boxes -> {out}")

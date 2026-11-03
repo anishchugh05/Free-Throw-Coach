@@ -30,12 +30,56 @@ def tracks(boxes):
     return out
 
 
-def all_shots(ball_boxes, hoop_box, fps=FPS, **kw):
+def hoop_track_from(records):
+    """Per-window hoop boxes (SAM ids are prefixed 'window:obj') -> (frames, cx, top, ref_box).
+
+    In each window the largest-area object is the real hoop. Boxes are median-smoothed in time.
+    """
+    from scipy.signal import medfilt
+    area = lambda b: (b["r"] - b["l"]) * (b["b"] - b["t"])
+    wins = {}
+    for b in records:
+        w, _, o = str(b["obj"]).rpartition(":")
+        wins.setdefault(w, {}).setdefault(o, []).append(b)
+    frames, boxes = [], []
+    for w, objs in wins.items():
+        best = max(objs.values(), key=lambda v: np.mean([area(b) for b in v]))
+        best = sorted(best, key=lambda b: b["f"])
+        arr = np.array([[b["l"], b["t"], b["r"], b["b"]] for b in best])
+        k = 9 if len(arr) >= 9 else (len(arr) // 2) * 2 + 1
+        sm = np.column_stack([medfilt(arr[:, i], k) for i in range(4)]) if k > 1 else arr
+        frames += [b["f"] for b in best]
+        boxes += list(sm)
+    order = np.argsort(frames)
+    frames, boxes = np.array(frames)[order], np.array(boxes)[order]
+    ref = tuple(float(np.median(boxes[:, i])) for i in range(4))
+    return frames, (boxes[:, 0] + boxes[:, 2]) / 2, boxes[:, 1], ref
+
+
+def hoop_offsets(track, nf):
+    """Per-frame (dx, dy) of the hoop vs its median position, interpolated between windows."""
+    frames, cx, top, ref = track
+    fr = np.arange(nf)
+    dx = np.interp(fr, frames, cx) - (ref[0] + ref[2]) / 2
+    dy = np.interp(fr, frames, top) - ref[1]
+    return dx, dy
+
+
+def all_shots(ball_boxes, hoop_box, fps=FPS, hoop_track=None, **kw):
+    """hoop_track (from hoop_track_from) makes this robust to a moving camera: the ball is measured
+    relative to the hoop on every frame, so camera pans and bumps cancel out."""
     shots = []
     for obj, (x, y) in tracks(ball_boxes).items():
         if np.sum(~np.isnan(y)) < 30:
             continue
+        x_raw, y_raw = x, y
+        if hoop_track is not None:
+            hb_ref = hoop_track[3]
+            dx, dy = hoop_offsets(hoop_track, len(x))
+            x, y = x - dx, y - dy
+            hoop_box = hb_ref
         ss, _ = analyze(x, y, hoop_box, fps, center_in=CENTER_IN, **kw)
+        x, y = x_raw, y_raw
         for s in ss:
             s["obj"], s["t"] = obj, s["apex_frame"] / fps
             lo = max(0, s["release_frame"] - int(0.15 * fps))

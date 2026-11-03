@@ -5,7 +5,7 @@
 Optional accuracy_notes.json: {"<stem>": {"label": "...", "tuned": true, "errors": {"<log seconds>": "why"}}}
 """
 import json, pathlib, re, sys
-from pipeline import load, hoop_box_from, all_shots
+from pipeline import load, hoop_box_from, all_shots, hoop_track_from
 
 
 def parse_log(path):
@@ -19,7 +19,12 @@ def parse_log(path):
 
 def score(stem, hoop_stem, logfile, fps=None):
     kw = {"fps": fps} if fps else {}
-    shots = all_shots(load(stem, "basketball"), hoop_box_from(load(hoop_stem, "basketball_hoop")), **kw)
+    try:                                   # moving camera: per-frame hoop track from sam_windows.py
+        trk = hoop_track_from(load(stem, "hoop_track"))
+    except FileNotFoundError:
+        trk = None
+    hb = trk[3] if trk else hoop_box_from(load(hoop_stem, "basketball_hoop"))
+    shots = all_shots(load(stem, "basketball"), hb, hoop_track=trk, **kw)
     log = parse_log(logfile)
     used, rows = set(), []
     for truth, tl in log:
