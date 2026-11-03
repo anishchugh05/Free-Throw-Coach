@@ -4,6 +4,7 @@ from dotenv import load_dotenv; load_dotenv()
 import coach as coach_mod
 import render as render_mod
 import sam_client
+import sam_windows
 from pipeline import hoop_box_from, all_shots
 from shooter import shooter_metrics
 
@@ -93,6 +94,24 @@ def analyze_and_coach(jid, balls, hoops, fps, players=None):
     return hoop_box, shots, report, boxes
 
 
+def shooter_boxes_for(norm, balls, hoops, fps, width):
+    """Shooter tracking only on short windows around each shot (fast); never fatal."""
+    try:
+        hb = hoop_box_from(hoops)
+        shots = all_shots(balls, hb, fps)
+        if not shots:
+            return None
+        n = max(b["f"] for b in balls) + 1
+        async def go():
+            return await sam_windows.track_windows(sam_client.segment, sam_client.make_client(), str(norm),
+                                                   shots, fps, n, min(width, 1920))
+        recs, _ = asyncio.run(go())
+        return recs or None
+    except Exception:
+        traceback.print_exc()
+        return None
+
+
 def _pipeline(job, src):
     d = JOBS / job["id"]
     fps, w, h = probe(src)
@@ -109,14 +128,12 @@ def _pipeline(job, src):
         c = sam_client.make_client()
         return await asyncio.gather(sam_client.segment(c, str(norm), "basketball"),
                                     sam_client.segment(c, str(hoopclip), "basketball hoop"),
-                                    sam_client.segment(c, str(norm), "basketball player"),
                                     return_exceptions=True)
-    balls, hoops, players = asyncio.run(both())
+    balls, hoops = asyncio.run(both())
     for r in (balls, hoops):
         if isinstance(r, Exception):
             raise r
-    if isinstance(players, Exception):     # shooter metrics are a bonus, never fatal
-        traceback.print_exception(players); players = None
+    players = shooter_boxes_for(norm, balls, hoops, fps, w)
     (d / "balls.json").write_text(json.dumps(balls))
     (d / "hoops.json").write_text(json.dumps(hoops))
     if players:
