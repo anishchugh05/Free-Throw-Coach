@@ -1,0 +1,30 @@
+{
+ "clips": [
+  {
+   "stem": "full",
+   "logged": 27,
+   "found": 27,
+   "extra": 0,
+   "correct": 26,
+   "confusion": {
+    "make_make": 24,
+    "make_miss": 0,
+    "miss_make": 1,
+    "miss_miss": 2
+   },
+   "errors": [
+    {
+     "t": 15,
+     "truth": "miss",
+     "detected": "make",
+     "offset_in": -2.9,
+     "note": "A miss that went left or right. A side camera can't see that, so it read as a make."
+    }
+   ],
+   "not_found": [],
+   "bad_fits": 2,
+   "label": "Coach clip 1 \u00b7 27 shots",
+   "tuned": true
+  }
+ ]
+}

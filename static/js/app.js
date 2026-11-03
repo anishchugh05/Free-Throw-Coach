@@ -142,7 +142,7 @@ function route() {
     page = "";
     screenEl.replaceChildren();
     requestAnimationFrame(() => {
-      const target = ["#how", "#system", "#analysis", "#guide", "#content"].includes(location.hash)
+      const target = ["#how", "#system", "#analysis", "#guide", "#accuracy", "#content"].includes(location.hash)
         ? $(location.hash)
         : null;
       if (target) target.scrollIntoView();
@@ -545,6 +545,78 @@ function results(result, id, mock, fromCache = false) {
     );
     $("#plot").closest(".panel").before(panel);
   }
+  if (!mock && typeof id === "string" && shots.length) {
+    const panel = el("div", null, "panel ask"),
+      log = el("div", null, "ask-log"),
+      form = el("form", null, "ask-form"),
+      input = el("input"),
+      send = el("button", "Ask", "btn primary"),
+      chips = el("div", null, "ask-chips"),
+      history = [];
+    log.setAttribute("aria-live", "polite");
+    input.type = "text";
+    input.maxLength = 300;
+    input.placeholder = "Ask about your session…";
+    input.setAttribute("aria-label", "Ask your coach a question");
+    send.type = "submit";
+    form.append(input, send);
+    const misses = shots.filter((s) => !s.made);
+    const suggestions = [
+      misses.length ? "Why did I miss shot #" + misses[0].i + "?" : "What was my best shot?",
+      "What should I drill next?",
+      "Was I getting tired?",
+    ];
+    async function submit(q) {
+      q = q.trim();
+      if (!q || send.disabled) return;
+      send.disabled = true;
+      input.value = "";
+      chips.hidden = true;
+      log.append(el("p", q, "ask-q"));
+      const a = el("p", "Thinking…", "ask-a thinking");
+      log.append(a);
+      log.scrollTop = log.scrollHeight;
+      try {
+        const res = await request("/api/jobs/" + encodeURIComponent(id) + "/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q, history }),
+        });
+        a.textContent = res.answer;
+        a.classList.remove("thinking");
+        history.push({ q, a: res.answer });
+      } catch (e) {
+        a.textContent = e.message || "The coach couldn't answer just now.";
+        a.classList.remove("thinking");
+        a.classList.add("ask-err");
+      }
+      send.disabled = false;
+      log.scrollTop = log.scrollHeight;
+      input.focus();
+    }
+    for (const q of suggestions) {
+      const b = el("button", q, "chip");
+      b.type = "button";
+      b.onclick = () => submit(q);
+      chips.append(b);
+    }
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      submit(input.value);
+    };
+    panel.append(
+      el("div", "Muse Spark / Ask your coach", "tag"),
+      el("h3", "Ask about your session"),
+      el(
+        "p",
+        "Answers use only the numbers we measured for this session. Things we can't see, like elbow or wrist, we'll say so."
+      ),
+      chips,
+      log,
+      form
+    );
+    screenEl.querySelector(".resultgrid").after(panel);
+  }
   const player = $("#player"),
     note = $("#playerNote");
   // Reserve the final player frame immediately; slow metadata gets a quiet placeholder.
@@ -817,3 +889,55 @@ function previewResult() {
   };
 }
 route();
+
+// ---- Accuracy section (data from /accuracy.json, produced by build_accuracy.py) ----
+(async function loadAccuracy() {
+  const host = document.getElementById("accuracyBody");
+  if (!host) return;
+  let data;
+  for (const url of ["./accuracy.json", "./static/accuracy.json"]) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        data = await res.json();
+        break;
+      }
+    } catch {}
+  }
+  if (!data?.clips?.length) return;
+  document.getElementById("accuracy").hidden = false;
+  const clips = data.clips;
+  const sum = (k) => clips.reduce((s, c) => s + (c[k] || 0), 0);
+  const card = (c) => {
+    const n = el("article", null, "acc-card"),
+      cf = c.confusion || {};
+    const head = el("div", null, "acc-head");
+    head.append(el("b", c.label), el("span", c.tuned ? "Used while building" : "Held-out clip", c.tuned ? "badge" : "badge good"));
+    const big = el("div", null, "acc-big");
+    big.append(el("strong", c.correct + "/" + c.found), el("small", "make/miss calls matched the hand log"));
+    const stats = el("ul", null, "acc-stats");
+    for (const [k, v] of [
+      ["Shots found", c.found + " of " + c.logged],
+      ["Extra detections", String(c.extra)],
+      ["Makes called right", (cf.make_make || 0) + " of " + ((cf.make_make || 0) + (cf.make_miss || 0))],
+      ["Misses called right", (cf.miss_miss || 0) + " of " + ((cf.miss_miss || 0) + (cf.miss_make || 0))],
+    ]) {
+      const li = el("li");
+      li.append(el("span", k), el("b", v));
+      stats.append(li);
+    }
+    n.append(head, big, stats);
+    for (const e of c.errors || []) {
+      const t = Math.floor(e.t / 60) + ":" + String(e.t % 60).padStart(2, "0");
+      const p = el("p", null, "acc-err");
+      p.append(el("b", "Wrong call at " + t + ": "), "logged " + e.truth + ", we said " + e.detected + ". " + (e.note || ""));
+      n.append(p);
+    }
+    return n;
+  };
+  host.replaceChildren(...clips.map(card));
+  const total = el("p", null, "acc-total");
+  total.textContent =
+    sum("correct") + " of " + sum("found") + " calls matched across " + clips.length + " scored clip" + (clips.length > 1 ? "s" : "") + ". We score every clip against a hand-made shot log.";
+  host.after(total);
+})();

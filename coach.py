@@ -96,3 +96,34 @@ if __name__ == "__main__":
     json.dump(out, open("coaching.json", "w"), indent=1)
     print("\n=== COACHING ===")
     print(json.dumps(out, indent=1))
+
+
+ASK_PROMPT = """You are the free-throw coach for ONE player, answering a question about THEIR practice session.
+The JSON below is everything we measured. Fields:
+- shots[]: i = shot number, t = seconds into the video, made, miss_type (short/long), entry = entry angle in degrees,
+  apex_in = inches the arc peaked above the rim, short_in = where the ball crossed rim height (positive = short,
+  negative = long), reach_pct / tempo_s = shooter routine numbers (percent of body height / seconds). null = not measured.
+- report: session totals and averages. shooter: routine consistency. coaching: the verdict already shown to the player.
+Rules:
+- Use ONLY this data. Cite shot numbers like #7. Never invent a measurement.
+- Left/right misses, elbow, wrist, follow-through, grip, mental state are NOT measured. If asked, say we can't see
+  that from a side camera, then answer the closest thing the data does show.
+- If the question is not about this session or free-throw shooting, say you only coach this session.
+- Plain text, max 70 words, no markdown, no lists, spoken like a coach. No medical advice."""
+
+
+def ask(data, question, history=None):
+    from openai import OpenAI
+    client = OpenAI(base_url="https://api.meta.ai/v1", api_key=os.environ["MODEL_API_KEY"])
+    turns = ""
+    for h in (history or [])[-3:]:
+        turns += f"Player: {str(h.get('q', ''))[:300]}\nCoach: {str(h.get('a', ''))[:600]}\n"
+    user = (turns + "Player: " if turns else "") + question[:300]
+    resp = client.responses.create(
+        model=MODEL, reasoning={"effort": "low"},
+        input=[{"role": "developer", "content": ASK_PROMPT + "\n\nSESSION DATA:\n" + json.dumps(data)},
+               {"role": "user", "content": user}])
+    text = (resp.output_text or "").strip()
+    if not text:
+        raise RuntimeError("empty answer")
+    return text[:900]

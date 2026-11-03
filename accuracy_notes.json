@@ -1,0 +1,9 @@
+{
+  "full": {
+    "label": "Coach clip 1 · 27 shots",
+    "tuned": true,
+    "errors": {
+      "15": "A miss that went left or right. A side camera can't see that, so it read as a make."
+    }
+  }
+}

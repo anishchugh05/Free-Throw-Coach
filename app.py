@@ -1,8 +1,9 @@
 """uvicorn app:app --port 8000"""
 import os, pathlib, re, shutil, uuid
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+import coach as coach_mod
 import process
 
 app = FastAPI()
@@ -52,6 +53,34 @@ def job(jid: str):
     if not j:
         raise HTTPException(404, "No such job")
     return j
+
+
+ASK_LIMIT = 25
+_asks = {}
+
+
+@app.post("/api/jobs/{jid}/ask")
+def ask(jid: str, payload: dict = Body(...)):
+    if not re.fullmatch(r"[0-9a-f]{10}|demo", jid):
+        raise HTTPException(404)
+    j = process.load_job(jid)
+    if not j or j["status"] != "done" or not j.get("result"):
+        raise HTTPException(409, "The session isn't ready yet.")
+    q = payload.get("question")
+    if not isinstance(q, str) or not q.strip():
+        raise HTTPException(400, "Type a question first.")
+    if _asks.get(jid, 0) >= ASK_LIMIT:
+        raise HTTPException(429, "That's the question limit for this session.")
+    _asks[jid] = _asks.get(jid, 0) + 1
+    r = j["result"]
+    data = dict(shots=r["shots"], report=r["report"], coaching=r.get("coaching"))
+    hist = payload.get("history") if isinstance(payload.get("history"), list) else []
+    hist = [h for h in hist if isinstance(h, dict)]
+    try:
+        return {"answer": coach_mod.ask(data, q.strip(), hist)}
+    except Exception:
+        _asks[jid] -= 1
+        raise HTTPException(502, "The coach couldn't answer just now. Try again.")
 
 
 @app.get("/api/jobs/{jid}/video")

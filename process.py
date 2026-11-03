@@ -68,7 +68,10 @@ def build_result(shots, report, coaching, fps, hoop_box, video_url, coaching_err
                  miss_type=s["miss_type"],
                  entry=round(s["entry_angle"]) if s["fit_ok"] else None,
                  apex_in=round(s["apex_above_rim_in"]) if s["fit_ok"] else None,
-                 short_in=round(s["short_in"], 1), fit_ok=s["fit_ok"]) for i, s in enumerate(shots)]
+                 short_in=round(s["short_in"], 1), fit_ok=s["fit_ok"],
+                 reach_pct=round(s["shooter"]["ext_pct"], 1) if s.get("shooter") else None,
+                 tempo_s=round(s["shooter"]["tempo_s"], 2) if s.get("shooter") and s["shooter"].get("tempo_s") is not None else None)
+            for i, s in enumerate(shots)]
     return dict(fps=fps, hoop_box=list(hoop_box), shots=rows,
                 report={k: v for k, v in report.items() if k != "per_shot"},
                 coaching=coaching, coaching_error=coaching_error, video=video_url)
