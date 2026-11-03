@@ -24,7 +24,64 @@
    "not_found": [],
    "bad_fits": 2,
    "label": "Coach clip 1 \u00b7 27 shots",
-   "tuned": true
+   "tuned": true,
+   "badge": "Used while building",
+   "history": []
+  },
+  {
+   "stem": "coach2_enc",
+   "logged": 32,
+   "found": 32,
+   "extra": 1,
+   "correct": 29,
+   "confusion": {
+    "make_make": 23,
+    "make_miss": 1,
+    "miss_make": 2,
+    "miss_miss": 6
+   },
+   "errors": [
+    {
+     "t": 68,
+     "truth": "miss",
+     "detected": "make",
+     "offset_in": -1.6,
+     "note": "Logged as a miss, but the ball crossed the rim where a make would. A side camera can't see every kind of miss."
+    },
+    {
+     "t": 103,
+     "truth": "miss",
+     "detected": "make",
+     "offset_in": -3.7,
+     "note": "Same pattern: logged as a miss, but it reads like a make from this angle."
+    },
+    {
+     "t": 106,
+     "truth": "make",
+     "detected": "miss",
+     "offset_in": 5.6,
+     "note": "Logged as a make, but it crossed 5.6 in off centre, just past our 5.5 in limit."
+    }
+   ],
+   "not_found": [],
+   "bad_fits": 7,
+   "label": "Coach clip 2 \u00b7 32 shots, camera moves",
+   "tuned": true,
+   "badge": "Fixed after this clip",
+   "history": [
+    {
+     "label": "Assuming a fixed camera",
+     "correct": 20
+    },
+    {
+     "label": "Tracking the hoop every frame",
+     "correct": 27
+    },
+    {
+     "label": "Plus a rim-out check",
+     "correct": 29
+    }
+   ]
   }
  ]
 }

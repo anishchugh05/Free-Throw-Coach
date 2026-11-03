@@ -1,9 +1,34 @@
 {
   "full": {
-    "label": "Coach clip 1 · 27 shots",
+    "label": "Coach clip 1 \u00b7 27 shots",
     "tuned": true,
     "errors": {
       "15": "A miss that went left or right. A side camera can't see that, so it read as a make."
+    },
+    "badge": "Used while building"
+  },
+  "coach2_enc": {
+    "label": "Coach clip 2 \u00b7 32 shots, camera moves",
+    "tuned": true,
+    "badge": "Fixed after this clip",
+    "history": [
+      {
+        "label": "Assuming a fixed camera",
+        "correct": 20
+      },
+      {
+        "label": "Tracking the hoop every frame",
+        "correct": 27
+      },
+      {
+        "label": "Plus a rim-out check",
+        "correct": 29
+      }
+    ],
+    "errors": {
+      "68": "Logged as a miss, but the ball crossed the rim where a make would. A side camera can't see every kind of miss.",
+      "103": "Same pattern: logged as a miss, but it reads like a make from this angle.",
+      "106": "Logged as a make, but it crossed 5.6 in off centre, just past our 5.5 in limit."
     }
   }
 }

@@ -783,7 +783,7 @@ function results(result, id, mock, fromCache = false) {
     const first = el("td");
     first.append(btn);
     row.append(first);
-    const outcome = shot.made ? "Make" : "Miss" + (shot.miss_type ? " · " + shot.miss_type : "");
+    const outcome = shot.made ? "Make" : "Miss" + (shot.miss_type ? " · " + String(shot.miss_type).replace("_", " ") : "");
     row.append(
       el("td", stamp(shot.t)),
       el("td", outcome, shot.made ? "makeText" : "missText"),
@@ -912,7 +912,7 @@ route();
     const n = el("article", null, "acc-card"),
       cf = c.confusion || {};
     const head = el("div", null, "acc-head");
-    head.append(el("b", c.label), el("span", c.tuned ? "Used while building" : "Held-out clip", c.tuned ? "badge" : "badge good"));
+    head.append(el("b", c.label), el("span", c.badge || (c.tuned ? "Used while building" : "Held-out clip"), c.tuned ? "badge" : "badge good"));
     const big = el("div", null, "acc-big");
     big.append(el("strong", c.correct + "/" + c.found), el("small", "make/miss calls matched the hand log"));
     const stats = el("ul", null, "acc-stats");
@@ -927,6 +927,15 @@ route();
       stats.append(li);
     }
     n.append(head, big, stats);
+    if (c.history && c.history.length) {
+      const hist = el("ol", null, "acc-hist");
+      for (const h of c.history) {
+        const li = el("li");
+        li.append(el("span", h.label), el("b", h.correct + "/" + c.found));
+        hist.append(li);
+      }
+      n.append(el("div", "How it improved on this clip", "acc-hist-title"), hist);
+    }
     for (const e of c.errors || []) {
       const t = Math.floor(e.t / 60) + ":" + String(e.t % 60).padStart(2, "0");
       const p = el("p", null, "acc-err");

@@ -1176,3 +1176,11 @@ h1:focus, h1:focus-visible { outline: none; }
 .acc-stats b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
 .acc-err { margin: 0; padding: 12px 14px; border-radius: 10px; background: #221620; border: 1px solid #5a2f44; color: #f0c6d2; font-size: 14px; line-height: 1.5; }
 .acc-total { margin-top: 18px; color: var(--muted); font-size: 14px; }
+
+.acc-hist-title { font: 600 12px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #8d8cb0; }
+.acc-hist { list-style: none; margin: -6px 0 0; padding: 0; display: grid; gap: 0; counter-reset: h; }
+.acc-hist li { counter-increment: h; display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.acc-hist li::before { content: counter(h); margin-right: 10px; font: 600 12px var(--mono); color: var(--violet); }
+.acc-hist li span { flex: 1; }
+.acc-hist li b { color: #fff; font-variant-numeric: tabular-nums; }
+.acc-hist li:last-child b { color: #8be0ad; }

@@ -55,7 +55,7 @@ def render(video_in, out_path, shots, hoop_box, fps, max_w=1280, on_progress=Non
                 cv2.polylines(frame, [seen.reshape(-1, 1, 2)], False, col, max(2, int(3 * fs)), cv2.LINE_AA)
             cv2.circle(frame, tuple(int(v) for v in seen[-1]), max(4, int(9 * fs)), col, -1, cv2.LINE_AA)
             if after:
-                lab = "MAKE" if s["made"] else "MISS " + (s["miss_type"] or "")
+                lab = "MAKE" if s["made"] else "MISS " + (s["miss_type"] or "").replace("_", " ")
                 _text(frame, lab, (max(8, hb[0] - int(40 * fs)), max(30, hb[1] - int(24 * fs))),
                       1.1 * fs, col, max(2, int(3 * fs)))
         ov = frame.copy()

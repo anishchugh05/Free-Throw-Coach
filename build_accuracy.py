@@ -59,6 +59,8 @@ if __name__ == "__main__":
         n = notes.get(stem, {})
         r["label"] = n.get("label", stem)
         r["tuned"] = bool(n.get("tuned", False))
+        r["badge"] = n.get("badge", "Used while building" if r["tuned"] else "Held-out clip")
+        r["history"] = n.get("history", [])
         for e in r["errors"]:
             e["note"] = n.get("errors", {}).get(str(e["t"]), "")
         clips.append(r)

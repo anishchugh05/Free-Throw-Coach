@@ -1,7 +1,13 @@
+"""Free-throw shot metrics from a side-view ball track (v2).
+
+Input : per-frame ball centre (px, y down, NaN = lost) + hoop box + fps.
+Scale : rim is 18 in wide, so px/inch comes from the hoop box.
+"""
 import numpy as np
 from scipy.signal import find_peaks
 
 RIM_IN = 18.0
+
 
 def _fill_gaps(v, max_gap=6):
     v = v.astype(float).copy()
@@ -23,12 +29,15 @@ def _fill_gaps(v, max_gap=6):
             i += 1
     return v
 
-def analyze(x, y, hoop_box, fps, make_tol_in=5.5, center_in=0.0, win_s=0.9, tol_frac=0.10):
+
+def analyze(x, y, hoop_box, fps, make_tol_in=5.5, center_in=0.0, win_s=0.9, tol_frac=0.10, rim_out_frac=0.25):
+    """center_in: calibration - where (in inches from the hoop-box centre) a dead-centre swish crosses."""
     x, y = _fill_gaps(np.asarray(x)), _fill_gaps(np.asarray(y))
     hx1, hy1, hx2, hy2 = hoop_box
     hoop_cx, rim_y = (hx1 + hx2) / 2, hy1
     px_in = (hx2 - hx1) / RIM_IN
     tol = tol_frac * (hx2 - hx1)
+
     ys = np.where(np.isnan(y), np.nanmax(y), y)
     peaks, _ = find_peaks(-ys, prominence=2.0 * (hx2 - hx1), distance=int(0.8 * fps))
     shots = []
@@ -43,6 +52,7 @@ def analyze(x, y, hoop_box, fps, make_tol_in=5.5, center_in=0.0, win_s=0.9, tol_
         seg = seg[~np.isnan(x[seg])]
         if len(seg) < 4:
             continue
+        # walk back from the apex while the ball still follows the parabola (max win_s seconds)
         start, miss = a, 0
         for i in range(a - 1, max(a - int(win_s * fps), 0), -1):
             if np.isnan(y[i]):
@@ -63,12 +73,24 @@ def analyze(x, y, hoop_box, fps, make_tol_in=5.5, center_in=0.0, win_s=0.9, tol_
         tr, tc = (start - a) / fps, (c - a) / fps
         vx_r, vy_r = pxf[0], 2 * py[0] * tr + py[1]
         vx_c, vy_c = pxf[0], 2 * py[0] * tc + py[1]
+        # where the ball actually crossed rim height (observed), fall back to the fit
         x_c = x[c] if not np.isnan(x[c]) else np.polyval(pxf, tc)
         side = np.sign(np.polyval(pxf, tr) - hoop_cx) or 1.0
         off = (x_c - hoop_cx) / px_in - center_in
         rel = float(np.degrees(np.arctan2(-vy_r, abs(vx_r))))
         ent = float(np.degrees(np.arctan2(vy_c, abs(vx_c))))
         made = abs(off) <= make_tol_in
+        # Rim-out: after reaching rim height the ball bounces back UP. A made shot keeps falling through the net.
+        post = y[c:c + int(0.6 * fps) + 1]
+        post = post[~np.isnan(post)]
+        rim_out = False
+        if len(post) >= 5:
+            k = int(np.argmax(post))
+            rise = (post[k] - post[k:].min()) / (hx2 - hx1)
+            depth = (post[k] - rim_y) / (hx2 - hx1)      # how far below the rim it got before turning around
+            rim_out = bool(rise > rim_out_frac and depth < 1.2)
+        if rim_out:
+            made = False
         shots.append(dict(
             apex_frame=int(a), release_frame=int(start), rim_frame=int(c),
             release_angle=rel, entry_angle=ent,
@@ -77,9 +99,11 @@ def analyze(x, y, hoop_box, fps, make_tol_in=5.5, center_in=0.0, win_s=0.9, tol_
             release_height_above_rim_in=float((rim_y - np.polyval(py, tr)) / px_in),
             hang_time_s=float(tc - tr),
             rim_offset_in=float(off), short_in=float(off * side), made=bool(made),
-            miss_type=None if made else ("short" if off * side > 0 else "long"),
+            miss_type=None if made else ("rim_out" if rim_out else ("short" if off * side > 0 else "long")),
+            rim_out=rim_out,
         ))
     return shots, summarize(shots)
+
 
 def summarize(shots):
     if not shots:

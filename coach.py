@@ -11,7 +11,7 @@ You get measured data from a fixed side-view camera. Fields:
 - entry_angle: degrees at which the ball drops into the rim
 - apex_in: how many inches above the rim the ball peaked
 - offset_in: where the ball crossed rim height vs the rim centre, in inches
-  (positive = short, negative = long). Left/right misses are invisible from the side.
+  (positive = short, negative = long). A miss of type rim_out reached the rim and bounced out, so don't call it short or long. Left/right misses are invisible from the side.
 - entry / apex_in are null for shots with a bad fit; ignore those fields there.
 - shooter (optional) comes from tracking the player's body box, in % of the player's own body height:
   reach_pct = how high the arms/ball reach above the head at the top of the shot (higher = more extension),
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
 ASK_PROMPT = """You are the free-throw coach for ONE player, answering a question about THEIR practice session.
 The JSON below is everything we measured. Fields:
-- shots[]: i = shot number, t = seconds into the video, made, miss_type (short/long), entry = entry angle in degrees,
+- shots[]: i = shot number, t = seconds into the video, made, miss_type (short/long/rim_out; rim_out = the ball reached the rim and bounced back up, so it was close), entry = entry angle in degrees,
   apex_in = inches the arc peaked above the rim, short_in = where the ball crossed rim height (positive = short,
   negative = long), reach_pct / tempo_s = shooter routine numbers (percent of body height / seconds). null = not measured.
 - report: session totals and averages. shooter: routine consistency. coaching: the verdict already shown to the player.
