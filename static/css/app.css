@@ -1186,3 +1186,16 @@ h1:focus, h1:focus-visible { outline: none; }
 .acc-hist li:last-child b { color: #8be0ad; }
 
 .notice { margin: 0 0 16px; padding: 14px 18px; border: 1px solid rgba(255,196,120,.35); background: rgba(255,196,120,.08); border-radius: 12px; color: #f2d9b0; font-size: 14px; line-height: 1.5; }
+
+.legend { display: flex; gap: 10px; align-items: center; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.legend .swatch { flex: none; width: 26px; border-top: 3px dashed #8cdcff; }
+
+@media print {
+  @page { size: letter; margin: 12mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: var(--bg) !important; }
+  header, footer, video, .ask, .actions, .legend, #playerNote, .plot-scroll + .plotlabels:empty, .resultgrid > .panel:first-child { display: none !important; }
+  .resultgrid { display: block !important; }
+  .panel, .stat, .coach { break-inside: avoid; page-break-inside: avoid; }
+  .panel { margin-bottom: 10mm; }
+}

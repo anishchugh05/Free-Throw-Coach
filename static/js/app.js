@@ -503,7 +503,7 @@ function results(result, id, mock, fromCache = false) {
   stat("Rim offset", value(report.offset_in?.mean, "″", true), "Positive short · negative long");
   screenEl.insertAdjacentHTML(
     "beforeend",
-    '<div class="resultgrid"><div class="panel"><div class="tag">Session film</div><h3>Annotated replay</h3><video class="player" id="player" controls playsinline preload="metadata"></video><p id="playerNote" role="status"></p></div><article class="panel coach" id="coaching"><div class="tag">Muse Spark / Coach verdict</div></article></div><div class="panel"><div class="tag">Flight path</div><h3>Rim crossings</h3><p>Blue circles mark makes. Pink squares mark misses. The shaded band spans ±5.5 inches at the rim.</p><div class="plot-scroll"><div class="plotarea" id="plot"></div></div><div class="plotlabels" id="plotLabels"></div></div><div class="panel tablepanel"><div class="tag">Shot log</div><h3>Shot by shot</h3><div class="tablewrap"><table><thead><tr><th scope="col">Shot</th><th scope="col">Time</th><th scope="col">Result</th><th scope="col">Entry</th><th scope="col">Peak</th><th scope="col">Short / long</th></tr></thead><tbody id="rows"></tbody></table></div></div><div class="actions"><button class="btn primary" id="another">Try another clip</button></div>'
+    '<div class="resultgrid"><div class="panel"><div class="tag">Session film</div><h3>Annotated replay</h3><video class="player" id="player" controls playsinline preload="metadata"></video><p id="playerNote" role="status"></p><p class="legend"><span class="swatch"></span>Dashed line: an ideal arc from your release to the rim, entering at about 45°. Compare it with your real path.</p></div><article class="panel coach" id="coaching"><div class="tag">Muse Spark / Coach verdict</div></article></div><div class="panel"><div class="tag">Flight path</div><h3>Rim crossings</h3><p>Blue circles mark makes. Pink squares mark misses. The shaded band spans ±5.5 inches at the rim.</p><div class="plot-scroll"><div class="plotarea" id="plot"></div></div><div class="plotlabels" id="plotLabels"></div></div><div class="panel tablepanel"><div class="tag">Shot log</div><h3>Shot by shot</h3><div class="tablewrap"><table><thead><tr><th scope="col">Shot</th><th scope="col">Time</th><th scope="col">Result</th><th scope="col">Entry</th><th scope="col">Peak</th><th scope="col">Short / long</th></tr></thead><tbody id="rows"></tbody></table></div></div><div class="actions"><button class="btn primary" id="pdf">Download PDF report</button><button class="btn" id="another">Try another clip</button></div>'
   );
   if (report.view_warning) {
     const n = document.createElement("div");
@@ -834,6 +834,12 @@ function results(result, id, mock, fromCache = false) {
     window.addEventListener("resize", layoutPlot, { signal: controller.signal });
   }
   if (!shots.length) rows.parentElement.after(el("p", "No shots detected in this clip."));
+  $("#pdf").onclick = () => {
+    const old = document.title;
+    document.title = "Free Throw Coach - session report";
+    window.addEventListener("afterprint", () => { document.title = old; }, { once: true });
+    window.print();
+  };
   $("#another").onclick = () => {
     input();
     window.scrollTo(0, 0);
