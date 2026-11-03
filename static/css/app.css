@@ -1184,3 +1184,5 @@ h1:focus, h1:focus-visible { outline: none; }
 .acc-hist li span { flex: 1; }
 .acc-hist li b { color: #fff; font-variant-numeric: tabular-nums; }
 .acc-hist li:last-child b { color: #8be0ad; }
+
+.notice { margin: 0 0 16px; padding: 14px 18px; border: 1px solid rgba(255,196,120,.35); background: rgba(255,196,120,.08); border-radius: 12px; color: #f2d9b0; font-size: 14px; line-height: 1.5; }

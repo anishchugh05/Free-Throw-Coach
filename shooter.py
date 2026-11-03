@@ -81,3 +81,21 @@ def shooter_metrics(person_boxes, shots, hoop_box, fps):
                 between_shots_s=dict(mean=round(float(np.mean(gaps)), 1), std=round(float(np.std(gaps)), 1))
                 if len(gaps) else None)
     return boxes, per, summ
+
+
+VIEW_WARNING = ("This doesn't look like a side-on view, so routine numbers (reach, tempo, stance) are hidden "
+                "and arc/rim-offset readings may be off. Make and miss counts are still reliable.")
+
+
+def sanitize(summ):
+    """Drop shooter numbers that are physically implausible. Returns (summary_or_None, warning_or_None)."""
+    if not summ:
+        return summ, None
+    reach = (summ.get("reach_pct") or {}).get("mean")
+    tempo = (summ.get("tempo_s") or {}).get("mean")
+    if (reach is not None and reach < 5) or (tempo is not None and tempo < 0.1):
+        return None, VIEW_WARNING
+    sd = summ.get("stance_drift_pct")
+    if sd and sd.get("range", 0) > 60:      # a stance can't wander more than ~half a body height
+        summ = dict(summ, stance_drift_pct=None)
+    return summ, None

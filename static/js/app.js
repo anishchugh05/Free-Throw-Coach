@@ -505,6 +505,13 @@ function results(result, id, mock, fromCache = false) {
     "beforeend",
     '<div class="resultgrid"><div class="panel"><div class="tag">Session film</div><h3>Annotated replay</h3><video class="player" id="player" controls playsinline preload="metadata"></video><p id="playerNote" role="status"></p></div><article class="panel coach" id="coaching"><div class="tag">Muse Spark / Coach verdict</div></article></div><div class="panel"><div class="tag">Flight path</div><h3>Rim crossings</h3><p>Blue circles mark makes. Pink squares mark misses. The shaded band spans ±5.5 inches at the rim.</p><div class="plot-scroll"><div class="plotarea" id="plot"></div></div><div class="plotlabels" id="plotLabels"></div></div><div class="panel tablepanel"><div class="tag">Shot log</div><h3>Shot by shot</h3><div class="tablewrap"><table><thead><tr><th scope="col">Shot</th><th scope="col">Time</th><th scope="col">Result</th><th scope="col">Entry</th><th scope="col">Peak</th><th scope="col">Short / long</th></tr></thead><tbody id="rows"></tbody></table></div></div><div class="actions"><button class="btn primary" id="another">Try another clip</button></div>'
   );
+  if (report.view_warning) {
+    const n = document.createElement("div");
+    n.className = "notice";
+    n.setAttribute("role", "note");
+    n.textContent = report.view_warning;
+    screenEl.querySelector(".resultgrid").insertAdjacentElement("beforebegin", n);
+  }
   if (report.shooter && finite(report.shooter.reach_pct?.mean)) {
     const sh = report.shooter,
       panel = el("div", null, "panel routine"),
@@ -533,11 +540,8 @@ function results(result, id, mock, fromCache = false) {
       sh.tempo_s && finite(sh.tempo_s.mean) ? sh.tempo_s.mean.toFixed(2) + " s" : "—",
       sh.tempo_s && finite(sh.tempo_s.std) ? "± " + sh.tempo_s.std.toFixed(2) + " s · start to full reach" : "Start to full reach"
     );
-    card(
-      "Stance drift",
-      finite(sh.stance_drift_pct?.range) ? value(sh.stance_drift_pct.range, "%") : "—",
-      "Spread of where you stand, of your height"
-    );
+    if (finite(sh.stance_drift_pct?.range))
+      card("Stance drift", value(sh.stance_drift_pct.range, "%"), "Spread of where you stand, of your height");
     card(
       "Between shots",
       sh.between_shots_s && finite(sh.between_shots_s.mean) ? sh.between_shots_s.mean.toFixed(1) + " s" : "—",

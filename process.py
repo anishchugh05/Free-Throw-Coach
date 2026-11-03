@@ -6,7 +6,7 @@ import render as render_mod
 import sam_client
 import sam_windows
 from pipeline import hoop_box_from, all_shots, hoop_track_from, hoop_offsets
-from shooter import shooter_metrics
+from shooter import shooter_metrics, sanitize
 
 JOBS = pathlib.Path("jobs")
 STAGES = [("encode", "Preparing your video"),
@@ -92,16 +92,22 @@ def analyze_and_coach(jid, balls, hoops, fps, players=None, hoop_recs=None):
     shots = all_shots(balls, hoop_box, fps, hoop_track=track)
     if not shots:
         raise RuntimeError("No shots found. Use a fixed side-on camera with the hoop and the full arc in frame.")
-    boxes, summ = {}, None
+    boxes, summ, view_warning = {}, None, None
     if players:
         try:
             boxes, per, summ = shooter_metrics(players, shots, hoop_box, fps)
+            summ, view_warning = sanitize(summ)
+            if view_warning:
+                per = [None] * len(shots)
             for s, m in zip(shots, per):
                 s["shooter"] = m
         except Exception:
             traceback.print_exc()
             boxes, summ = {}, None
     report = coach_mod.build_report(shots, summ)
+    if view_warning:
+        report['view_warning'] = view_warning
+        boxes = {}
     hoff = hoop_offsets(track, max(b['f'] for b in balls) + 1) if track else None
     return hoop_box, shots, report, boxes, hoff
 
