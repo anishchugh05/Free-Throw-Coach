@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+openai
+python-dotenv
+numpy
+scipy
+opencv-python
+matplotlib
+# meta_sam_parser: SEE README (setup) - helper that parses SAM 3.1 streaming responses
