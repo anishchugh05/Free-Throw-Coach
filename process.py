@@ -174,11 +174,18 @@ def start_job(jid, src):
     threading.Thread(target=work, daemon=True).start()
 
 
+def code_sig():
+    """Changes whenever the analysis code or demo data changes, so a stale cached demo is rebuilt."""
+    names = ["process.py", "shooter.py", "render.py", "coach.py", "pipeline.py", "shotmetrics.py",
+             "cache/full__basketball_player.json"]
+    return str(max((os.path.getmtime(n) for n in names if os.path.exists(n)), default=0))
+
+
 def start_demo(jid, video, stem="full", hoop_stem="spike"):
     """Same pipeline minus SAM: uses cached boxes so the demo is instant to start."""
     from pipeline import load
     job = dict(id=jid, status="running", stage="shots", label=LABELS["shots"], progress=None,
-               started=time.time(), error=None, result=None)
+               started=time.time(), error=None, result=None, sig=code_sig())
     _save(job)
 
     def work():

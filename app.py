@@ -37,7 +37,7 @@ def demo():
         raise HTTPException(404, f"Demo video {DEMO_VIDEO} not found.")
     jid = "demo"
     j = process.load_job(jid)
-    if j and j["status"] in ("running", "done"):
+    if j and j["status"] in ("running", "done") and j.get("sig") == process.code_sig():
         return {"id": jid}
     (process.JOBS / jid).mkdir(parents=True, exist_ok=True)
     process.start_demo(jid, DEMO_VIDEO)
