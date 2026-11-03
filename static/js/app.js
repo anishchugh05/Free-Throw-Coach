@@ -505,6 +505,46 @@ function results(result, id, mock, fromCache = false) {
     "beforeend",
     '<div class="resultgrid"><div class="panel"><div class="tag">Session film</div><h3>Annotated replay</h3><video class="player" id="player" controls playsinline preload="metadata"></video><p id="playerNote" role="status"></p></div><article class="panel coach" id="coaching"><div class="tag">Muse Spark / Coach verdict</div></article></div><div class="panel"><div class="tag">Flight path</div><h3>Rim crossings</h3><p>Blue circles mark makes. Pink squares mark misses. The shaded band spans ±5.5 inches at the rim.</p><div class="plot-scroll"><div class="plotarea" id="plot"></div></div><div class="plotlabels" id="plotLabels"></div></div><div class="panel tablepanel"><div class="tag">Shot log</div><h3>Shot by shot</h3><div class="tablewrap"><table><thead><tr><th scope="col">Shot</th><th scope="col">Time</th><th scope="col">Result</th><th scope="col">Entry</th><th scope="col">Peak</th><th scope="col">Short / long</th></tr></thead><tbody id="rows"></tbody></table></div></div><div class="actions"><button class="btn primary" id="another">Try another clip</button></div>'
   );
+  if (report.shooter && finite(report.shooter.reach_pct?.mean)) {
+    const sh = report.shooter,
+      panel = el("div", null, "panel routine"),
+      grid = el("div", null, "stats routine-stats");
+    panel.append(
+      el("div", "Shooter tracking / SAM 3.1", "tag"),
+      el("h3", "Your routine"),
+      el(
+        "p",
+        "Measured from the box SAM draws around you, shown relative to your own height. These show how repeatable you are, not whether a number is right or wrong."
+      ),
+      grid
+    );
+    const card = (label, main, sub) => {
+      const c = el("div", null, "panel stat");
+      c.append(el("div", label, "tag"), el("strong", main), el("small", sub));
+      grid.append(c);
+    };
+    card(
+      "Reach",
+      value(sh.reach_pct.mean, "%"),
+      finite(sh.reach_pct.std) ? "± " + value(sh.reach_pct.std, "%") + " · above your head" : "Above your head"
+    );
+    card(
+      "Lift tempo",
+      sh.tempo_s && finite(sh.tempo_s.mean) ? sh.tempo_s.mean.toFixed(2) + " s" : "—",
+      sh.tempo_s && finite(sh.tempo_s.std) ? "± " + sh.tempo_s.std.toFixed(2) + " s · start to full reach" : "Start to full reach"
+    );
+    card(
+      "Stance drift",
+      finite(sh.stance_drift_pct?.range) ? value(sh.stance_drift_pct.range, "%") : "—",
+      "Spread of where you stand, of your height"
+    );
+    card(
+      "Between shots",
+      sh.between_shots_s && finite(sh.between_shots_s.mean) ? sh.between_shots_s.mean.toFixed(1) + " s" : "—",
+      sh.between_shots_s && finite(sh.between_shots_s.std) ? "± " + sh.between_shots_s.std.toFixed(1) + " s" : "Routine timing"
+    );
+    $("#plot").closest(".panel").before(panel);
+  }
   const player = $("#player"),
     note = $("#playerNote");
   // Reserve the final player frame immediately; slow metadata gets a quiet placeholder.

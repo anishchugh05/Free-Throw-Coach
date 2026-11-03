@@ -11,7 +11,7 @@ def _text(img, txt, org, scale, color, thick=2):
     cv2.putText(img, txt, org, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick, cv2.LINE_AA)
 
 
-def render(video_in, out_path, shots, hoop_box, fps, max_w=1280, on_progress=None):
+def render(video_in, out_path, shots, hoop_box, fps, max_w=1280, on_progress=None, shooter_boxes=None):
     cap = cv2.VideoCapture(video_in)
     w0, h0 = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
@@ -34,6 +34,10 @@ def render(video_in, out_path, shots, hoop_box, fps, max_w=1280, on_progress=Non
             continue
         frame = cv2.resize(frame, (w, h), interpolation=cv2.INTER_AREA)
         cv2.rectangle(frame, (hb[0], hb[1]), (hb[2], hb[3]), WHITE, 1)
+        sb = shooter_boxes.get(i) if shooter_boxes else None
+        if sb:
+            cv2.rectangle(frame, (int(sb[0] * sc), int(sb[1] * sc)), (int(sb[2] * sc), int(sb[3] * sc)),
+                          (255, 170, 110), 1, cv2.LINE_AA)
         done = [s for s in shots if s["rim_frame"] <= i]
         for s, pts in zip(shots, paths):
             start = s["release_frame"] - int(0.15 * fps)

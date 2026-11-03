@@ -1,3 +1,4 @@
+"""python coach.py full spike   -> shots -> session report -> Muse Spark coaching (JSON)."""
 from dotenv import load_dotenv; load_dotenv()
 import json, os, sys
 import numpy as np
@@ -12,19 +13,24 @@ You get measured data from a fixed side-view camera. Fields:
 - offset_in: where the ball crossed rim height vs the rim centre, in inches
   (positive = short, negative = long). Left/right misses are invisible from the side.
 - entry / apex_in are null for shots with a bad fit; ignore those fields there.
+- shooter (optional) comes from tracking the player's body box, in % of the player's own body height:
+  reach_pct = how high the arms/ball reach above the head at the top of the shot (higher = more extension),
+  tempo_s = seconds from the start of the lift to full reach, stance_drift_pct = how much the back edge of the
+  body moves between shots (std/range; small = same stance every time), between_shots_s = time between shots.
+  Use these only as consistency signals. Do not convert them to inches or call them good or bad in absolute terms.
 
 Rules:
 - Use ONLY the numbers provided. Never invent a measurement or an ideal range.
 - Judge the player against their own consistency and their make/miss pattern.
 - Name exactly ONE top issue. If the session is too small or too clean to say, set confidence "low" and say so plainly.
 - cue: max 12 words, spoken like a coach. drill: one sentence.
-- Name one real strength. No jargon, no lists of problems.
-- Cues and drills may only address what is measured (arc, entry angle, short/long depth, consistency). Never mention elbow, wrist, follow-through or other body mechanics: the camera does not measure them.
+- Name one real strength (it may come from the shooter routine metrics). No jargon, no lists of problems.
 Reply with JSON only, no markdown, exactly:
 {"headline": str, "strength": str, "top_issue": {"title": str, "evidence": str, "cue": str, "drill": str},
  "consistency_note": str, "confidence": "low"|"medium"|"high"}"""
 
-def build_report(shots):
+
+def build_report(shots, shooter=None):
     n = len(shots)
     makes = sum(s["made"] for s in shots)
     stat = lambda k, src: ({"mean": round(float(np.mean([s[k] for s in src])), 1),
@@ -34,7 +40,7 @@ def build_report(shots):
     first, second = shots[:half], shots[half:]
     mean = lambda k, src: round(float(np.mean([s[k] for s in src])), 1) if src else None
     misses = [s for s in shots if not s["made"]]
-    return {
+    rep = {
         "shots": n, "makes": makes, "make_pct": round(100 * makes / n) if n else 0,
         "entry_angle": stat("entry_angle", ok),
         "apex_in": stat("apex_above_rim_in", ok),
@@ -54,10 +60,15 @@ def build_report(shots):
                       "apex_in": round(s["apex_above_rim_in"]) if s["fit_ok"] else None,
                       "offset_in": round(s["short_in"], 1)} for i, s in enumerate(shots)],
     }
+    if shooter:
+        rep["shooter"] = shooter
+    return rep
+
 
 def parse_json(text):
     a, b = text.find("{"), text.rfind("}")
     return json.loads(text[a:b + 1])
+
 
 def coach(report):
     from openai import OpenAI
@@ -70,9 +81,10 @@ def coach(report):
                    {"role": "user", "content": json.dumps(report)}])
         try:
             return parse_json(resp.output_text)
-        except Exception:
+        except Exception as e:
             last = resp.output_text
     raise RuntimeError("could not parse coaching JSON: " + str(last)[:300])
+
 
 if __name__ == "__main__":
     stem, hoop_stem = sys.argv[1], sys.argv[2]

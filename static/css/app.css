@@ -1136,3 +1136,8 @@ h1, h2, h3 { letter-spacing: -0.035em; }
 .hero .btn { font-size: 15px; }
 h1:focus, h1:focus-visible { outline: none; }
 .why-hero h1 { letter-spacing: -0.04em; }
+
+.routine { margin-bottom: 18px; }
+.routine h3 { margin: 6px 0 4px; }
+.routine > p { color: var(--muted); max-width: 70ch; }
+.routine-stats { margin-top: 14px; }

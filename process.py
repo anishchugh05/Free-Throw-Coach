@@ -5,6 +5,7 @@ import coach as coach_mod
 import render as render_mod
 import sam_client
 from pipeline import hoop_box_from, all_shots
+from shooter import shooter_metrics
 
 JOBS = pathlib.Path("jobs")
 STAGES = [("encode", "Preparing your video"),
@@ -72,15 +73,24 @@ def build_result(shots, report, coaching, fps, hoop_box, video_url, coaching_err
                 coaching=coaching, coaching_error=coaching_error, video=video_url)
 
 
-def analyze_and_coach(jid, balls, hoops, fps, job=None):
+def analyze_and_coach(jid, balls, hoops, fps, players=None):
     hoop_box = hoop_box_from(hoops) if hoops else None
     if hoop_box is None:
         raise RuntimeError("Couldn't find the hoop. Keep the whole rim in frame at the start of the clip.")
     shots = all_shots(balls, hoop_box, fps)
     if not shots:
         raise RuntimeError("No shots found. Use a fixed side-on camera with the hoop and the full arc in frame.")
-    report = coach_mod.build_report(shots)
-    return hoop_box, shots, report
+    boxes, summ = {}, None
+    if players:
+        try:
+            boxes, per, summ = shooter_metrics(players, shots, hoop_box, fps)
+            for s, m in zip(shots, per):
+                s["shooter"] = m
+        except Exception:
+            traceback.print_exc()
+            boxes, summ = {}, None
+    report = coach_mod.build_report(shots, summ)
+    return hoop_box, shots, report, boxes
 
 
 def _pipeline(job, src):
@@ -98,13 +108,22 @@ def _pipeline(job, src):
     async def both():
         c = sam_client.make_client()
         return await asyncio.gather(sam_client.segment(c, str(norm), "basketball"),
-                                    sam_client.segment(c, str(hoopclip), "basketball hoop"))
-    balls, hoops = asyncio.run(both())
+                                    sam_client.segment(c, str(hoopclip), "basketball hoop"),
+                                    sam_client.segment(c, str(norm), "basketball player"),
+                                    return_exceptions=True)
+    balls, hoops, players = asyncio.run(both())
+    for r in (balls, hoops):
+        if isinstance(r, Exception):
+            raise r
+    if isinstance(players, Exception):     # shooter metrics are a bonus, never fatal
+        traceback.print_exception(players); players = None
     (d / "balls.json").write_text(json.dumps(balls))
     (d / "hoops.json").write_text(json.dumps(hoops))
+    if players:
+        (d / "players.json").write_text(json.dumps(players))
 
     _stage(job, "shots")
-    hoop_box, shots, report = analyze_and_coach(job["id"], balls, hoops, fps)
+    hoop_box, shots, report, sboxes = analyze_and_coach(job["id"], balls, hoops, fps, players)
 
     _stage(job, "coach")
     coaching, cerr = None, None
@@ -116,7 +135,8 @@ def _pipeline(job, src):
     _stage(job, "render")
     def prog(p):
         job["progress"] = round(p, 2); _save(job)
-    render_mod.render(str(norm), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog)
+    render_mod.render(str(norm), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog,
+                      shooter_boxes=sboxes)
     return build_result(shots, report, coaching, fps, hoop_box, f"/api/jobs/{job['id']}/video", cerr)
 
 
@@ -149,7 +169,11 @@ def start_demo(jid, video, stem="full", hoop_stem="spike"):
             d = JOBS / jid
             fps, _, _ = probe(video)
             balls, hoops = load(stem, "basketball"), load(hoop_stem, "basketball_hoop")
-            hoop_box, shots, report = analyze_and_coach(jid, balls, hoops, fps)
+            try:
+                players = load(stem, "basketball_player")
+            except FileNotFoundError:
+                players = None
+            hoop_box, shots, report, sboxes = analyze_and_coach(jid, balls, hoops, fps, players)
             _stage(job, "coach")
             coaching, cerr = None, None
             try:
@@ -159,7 +183,8 @@ def start_demo(jid, video, stem="full", hoop_stem="spike"):
             _stage(job, "render")
             def prog(p):
                 job["progress"] = round(p, 2); _save(job)
-            render_mod.render(str(video), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog)
+            render_mod.render(str(video), str(d / "annotated.mp4"), shots, hoop_box, fps, on_progress=prog,
+                              shooter_boxes=sboxes)
             job["result"] = build_result(shots, report, coaching, fps, hoop_box, f"/api/jobs/{jid}/video", cerr)
             job["status"] = "done"
         except Exception as e:
