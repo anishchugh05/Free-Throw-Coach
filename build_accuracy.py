@@ -1,6 +1,6 @@
 """Score clips against hand logs and write static/accuracy.json for the site.
 
-  python build_accuracy.py full:spike:shot_log.txt [more clips as stem:hoop_stem:logfile ...]
+  python build_accuracy.py full:spike:shot_log.txt [more clips as stem:hoop_stem:logfile[:fps] ...]
 
 Optional accuracy_notes.json: {"<stem>": {"label": "...", "tuned": true, "errors": {"<log seconds>": "why"}}}
 """
@@ -17,8 +17,9 @@ def parse_log(path):
     return out
 
 
-def score(stem, hoop_stem, logfile):
-    shots = all_shots(load(stem, "basketball"), hoop_box_from(load(hoop_stem, "basketball_hoop")))
+def score(stem, hoop_stem, logfile, fps=None):
+    kw = {"fps": fps} if fps else {}
+    shots = all_shots(load(stem, "basketball"), hoop_box_from(load(hoop_stem, "basketball_hoop")), **kw)
     log = parse_log(logfile)
     used, rows = set(), []
     for truth, tl in log:
@@ -47,8 +48,9 @@ if __name__ == "__main__":
     notes = json.loads(notes_p.read_text()) if notes_p.exists() else {}
     clips = []
     for spec in sys.argv[1:]:
-        stem, hoop, log = spec.split(":")
-        r = score(stem, hoop, log)
+        parts = spec.split(":")
+        stem, hoop, log = parts[:3]
+        r = score(stem, hoop, log, float(parts[3]) if len(parts) > 3 else None)
         n = notes.get(stem, {})
         r["label"] = n.get("label", stem)
         r["tuned"] = bool(n.get("tuned", False))
